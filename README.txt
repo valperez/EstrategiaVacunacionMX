@@ -1,6 +1,6 @@
 Autores: 
-Rodrigo Zepeda            rzepeda17@gmail.com
-Valeria Perez Chavez      valeria.perez.mat@gmail.com
+Rodrigo Zepeda            
+Valeria Perez Chavez      
 
 ESTRATEGIA DE VACUNACIÓN MX
 
