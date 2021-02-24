@@ -200,5 +200,38 @@ grafica <- ggplot(israel_def_totales, aes(x = week, y = totales_israel, color = 
 
 
 # Vamos a ver los hospitalizaciones acumuladas por ciudad y no por grupo de edad
+# Fuente : https://data.gov.il/dataset/covid-19/resource/d07c0771-01a8-43b2-96cc-c6154e7fa9bd
+Sys.setlocale("LC_ALL", "Hebrew")
+hosp_israel <- read_csv("~/GitHub/EstrategiaVacunacionMX/Otros_Paises_datos/Israel/geographic-sum-per-day-ver_0051/geographic-sum-per-day-ver_0051.csv") %>%
+  select(date, accumulated_hospitalized, accumulated_deaths, town) %>%
+  mutate(date = dmy(date)) %>%
+  mutate(accumulated_hospitalized = ifelse(accumulated_hospitalized == "<15", 
+                                  15, 
+                                  accumulated_hospitalized)) %>%
+  mutate(accumulated_hospitalized = as.numeric(accumulated_hospitalized)) %>%
+  mutate(accumulated_deaths = ifelse(accumulated_deaths == "<15", 
+                                           15, 
+                                     accumulated_deaths)) %>%
+  mutate(accumulated_deaths = as.numeric(accumulated_deaths))
+
+hosp_acum <- hosp_israel %>%
+  group_by(date) %>%
+  summarise(sum(accumulated_hospitalized)) %>%
+  rename(hosp_tot = `sum(accumulated_hospitalized)`) %>%
+  mutate(hospitalized_daily = hosp_tot - lag(hosp_tot, default = 0))
+
+mort_acum <- hosp_israel %>%
+  group_by(date) %>%
+  summarise(sum(accumulated_deaths)) %>%
+  rename(mort_tot = `sum(accumulated_deaths)`) %>%
+  mutate(mort_daily = mort_tot - lag(mort_tot, default = 0))
+
+graf_hosp_diarias <- ggplot(hosp_acum, aes(x = date, y = hospitalized_daily)) + geom_line()
+
+graf_muertes_diarias <- ggplot(mort_acum, aes(x = date, y = mort_daily)) + geom_line()
+
+
+
+  
 
 
