@@ -17,6 +17,9 @@ options(mc.cores = max(parallel::detectCores() - 2, 1))
 setwd("~/GitHub/EstrategiaVacunacionMX/data/processed")
 set.seed(99)
 
+
+## ----- Datos de México -------
+
 descargar <- F
 
 if (descargar == T){
@@ -28,8 +31,8 @@ edadlabels <- c("Edad < 40", "Edad 40 - 49", "Edad 50 - 59",
                           "Edad 60 - 69", "Edad 70 - 79", "Edad 80 +") 
 
 #Cambiar a TRUE dependiendo de lo que se requiera calcular
-muertos <- F
-hosp <- T
+muertos <- T
+hosp <- F
 
 if (muertos == T){
   dats <- dats %>%
@@ -129,17 +132,47 @@ totales_match_edades <- def_covid %>% select(EDAD_GRUPOS) %>%
 
 P_edades <- (def_covid %>% select(-EDAD_GRUPOS) %>% as.matrix())
 
+## ----- Datos de Israel
 
-#Caracter?sticas del modelo 
+
+# Fuente : https://www.worldometers.info/world-population/israel-population/
+pob_total_israel <- 8745792
+
+if (muertos == T){
+  #muertos
+  muertos_isreal <- readRDS("~/GitHub/EstrategiaVacunacionMX/Otros_Paises_Datos/Israel/muertos_totales_israel.rds") %>%
+    filter(date >= ymd("2020/05/01")) %>%
+    pivot_wider(mort_daily, values_from = mort_daily, names_from = date )
+}
+
+if (hosp == T){
+  #hospitalizados
+  hospitalizados_israel <- readRDS("~/GitHub/EstrategiaVacunacionMX/Otros_Paises_Datos/Israel/hospitalizados_totales_israel.rds")
+}
+
+#Vacunados totales de la primera dosis solamente
+vacunados_israel <- readRDS("~/GitHub/EstrategiaVacunacionMX/Otros_Paises_Datos/Israel/vacunados_israel.rds") %>%
+  group_by(EDAD_GRUPOS) %>%
+  summarise(sum(first_dose))
+
+
+## ----- Caracter?sticas del modelo 
 chains = 1; iter_warmup = 100; nsim = 200; pchains = 1; m = 7; # threads = 1;
 #chains = 4; iter_warmup = 500; nsim = 1000; pchains = 4; m = 7; # threads = 1;
 datos  <- list( m = m, 
                 npaises = 1, #esto siempre tiene q ser 1 si no truena está mal el diseño
                 dias_predict = 300,
-                ndias = ncol(P_edades) , nedades = nrow(P_edades), P_edades = P_edades, ## nrow(P_edades) está mal
+                ndias = ncol(P_edades) , nedades = length(edadlabels), P_edades = P_edades, 
                 sigma_mu_hiper = 1,
                 mu_mu_hiper = 0, sigma_sigma_hiper = 1, sigma_edad_hiper = 1,
-                P_poblacion = poblacion_agrupada/10000) 
+                P_poblacion = datos_pob[,2]/10000, 
+                ndias_isr = ncol(muertos_isreal),
+                vacunados = vacunados_israel[, 2], 
+                P_pais_2 = muertos_israel,
+                pob_total_isr = pob_total_israel) 
+
+# Tengo que checar la dimension de vacunados 
+
 
 # function form 2 with an argument named `chain_id`
 initf2 <- function(chain_id = 1) {

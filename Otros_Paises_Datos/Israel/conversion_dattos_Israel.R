@@ -67,6 +67,14 @@ israel_pob <- israel_pob %>%
   rename(first_dose = `sum(first_dose)`) %>%
   rename(second_dose = `sum(second_dose)`)
 
+ggplot(israel_pob, aes(x = Vaccination_date)) +
+  geom_line(aes(y = first_dose, color = EDAD_GRUPOS))
+
+ggplot(israel_pob, aes(x = Vaccination_date)) +
+  geom_line(aes(y = second_dose, color = EDAD_GRUPOS))
+
+saveRDS(israel_pob, "vacunados_israel.rds")
+
 
 # ------ Vamos a ver la base de datos que tiene informacion de hospitalizados 
 # Fuente : https://data.gov.il/dataset/covid-19/resource/d07c0771-01a8-43b2-96cc-c6154e7fa9bd
@@ -230,7 +238,8 @@ graf_hosp_diarias <- ggplot(hosp_acum, aes(x = date, y = hospitalized_daily)) + 
 
 graf_muertes_diarias <- ggplot(mort_acum, aes(x = date, y = mort_daily)) + geom_line()
 
-
+saveRDS(hosp_acum, "hospitalizados_totales_israel.rds")
+saveRDS(mort_acum, "muertos_totales_israel.rds")
 
   
 
