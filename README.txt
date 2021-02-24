@@ -14,6 +14,8 @@ codigo_conversion_datos : es el codigo de R que utiliza y convierte las bases de
 descarga_covid.R : contiene el codigo para descargar la información utilizada para la base de datos_2 así como los 
 		   catalogos utilizados
 diccionario_covid.rds y dats_covid.rds son el resultado de la descarga anterior. 
+**Nota: es importante resaltar que dats_covid.rds es una base de datos muy grande y por tanto, muy pesada. Por lo anterior,
+no fue posible agregarlo al repositorio pero se genera automaticamente cuando se corre "descarga_covid.R".
 conversion_SIR : código para generar los datos SIR de cada entidad de la república dividido en grupos de edad junto con 
 		 la población en cada entidad. Sus resultados son :
 	datos_SIR_i donde i es el estado al que se refiere la información.
