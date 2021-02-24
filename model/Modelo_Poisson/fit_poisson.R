@@ -14,16 +14,17 @@ library(tidybayes)
 library(viridis)
 options(mc.cores = max(parallel::detectCores() - 2, 1))
 
-setwd("~/GitHub/EstrategiaVacunacionMX/data/processed")
 set.seed(99)
 
+setwd("~/GitHub/EstrategiaVacunacionMX/")
+stan_fname = "model/Modelo_Poisson/PoissonModel.stan"
 
 ## ----- Datos de México -------
 
-descargar <- F
+descargar <- T
 
 if (descargar == T){
-  source("descarga_covid.R")
+  source("data/processed/descarga_covid.R")
 }
 
 edadbreaks <- c(0, 40, 50, 60, 70, 80, Inf)
@@ -44,8 +45,10 @@ if (hosp == T){
     mutate(FECHA_ESCOGIDA = FECHA_INGRESO)
 }
 
+setwd("~/GitHub/EstrategiaVacunacionMX/")
+
 #---Trabajemos primero con la POBLACION México
-datos_pob <- readRDS("~/GitHub/EstrategiaVacunacionMX/data/processed/datos_pob.rds")
+datos_pob <- readRDS("data/processed/datos_pob.rds")
 
 datos_pob <- datos_pob %>%
   mutate(`Edad < 40` = rowSums(select(. , `De 0 a 14 años`:`De 35 a 39 años`))) %>%
@@ -110,10 +113,7 @@ def_covid <- def_covid %>%
 ggplot(def_covid, aes(x = FECHA_ESCOGIDA, y = totales, color = EDAD_GRUPOS)) +
   geom_line()
 
-#Vamos a quitar a los menores de 30 porque pues a ver que pasa
-# vector_prohibidos <- c("15-19", "20-24", "25-29")
-# def_covid <- def_covid %>%
-#   filter(!(EDAD_GRUPOS %in% vector_prohibidos))
+
 
 
 #Eliminamos los 0s
@@ -140,18 +140,18 @@ pob_total_israel <- 8745792
 
 if (muertos == T){
   #muertos
-  muertos_isreal <- readRDS("~/GitHub/EstrategiaVacunacionMX/Otros_Paises_Datos/Israel/muertos_totales_israel.rds") %>%
+  muertos_isreal <- readRDS("Otros_Paises_Datos/Israel/muertos_totales_israel.rds") %>%
     filter(date >= ymd("2020/05/01")) %>%
     pivot_wider(mort_daily, values_from = mort_daily, names_from = date )
 }
 
 if (hosp == T){
   #hospitalizados
-  hospitalizados_israel <- readRDS("~/GitHub/EstrategiaVacunacionMX/Otros_Paises_Datos/Israel/hospitalizados_totales_israel.rds")
+  hospitalizados_israel <- readRDS("Otros_Paises_Datos/Israel/hospitalizados_totales_israel.rds")
 }
 
 #Vacunados totales de la primera dosis solamente
-vacunados_israel <- readRDS("~/GitHub/EstrategiaVacunacionMX/Otros_Paises_Datos/Israel/vacunados_israel.rds") %>%
+vacunados_israel <- readRDS("Otros_Paises_Datos/Israel/vacunados_israel.rds") %>%
   group_by(EDAD_GRUPOS) %>%
   summarise(sum(first_dose))
 
@@ -165,10 +165,10 @@ datos  <- list( m = m,
                 ndias = ncol(P_edades) , nedades = length(edadlabels), P_edades = P_edades, 
                 sigma_mu_hiper = 1,
                 mu_mu_hiper = 0, sigma_sigma_hiper = 1, sigma_edad_hiper = 1,
-                P_poblacion = datos_pob[,2]/10000, 
+                P_poblacion = as.data.frame(datos_pob[,2]/10000), 
                 ndias_isr = ncol(muertos_isreal),
                 vacunados = vacunados_israel[, 2], 
-                P_pais_2 = muertos_israel,
+                P_pais_2 = muertos_isreal,
                 pob_total_isr = pob_total_israel) 
 
 # Tengo que checar la dimension de vacunados 
