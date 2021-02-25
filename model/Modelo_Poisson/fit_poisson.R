@@ -21,9 +21,9 @@ stan_fname = "model/Modelo_Poisson/PoissonModel.stan"
 
 ## ----- Datos de México -------
 
-descargar <- T
+descargar <- F
 
-if (descargar == T){
+if (descargar){
   source("data/processed/descarga_covid.R")
 }
 
@@ -142,7 +142,7 @@ if (muertos == T){
   #muertos
   muertos_isreal <- readRDS("Otros_Paises_Datos/Israel/muertos_totales_israel.rds") %>%
     filter(date >= ymd("2020/05/01")) %>%
-    pivot_wider(mort_daily, values_from = mort_daily, names_from = date )
+    pivot_wider(mort_tot, values_from = mort_tot, names_from = date )
 }
 
 if (hosp == T){
@@ -152,22 +152,59 @@ if (hosp == T){
 
 #Vacunados totales de la primera dosis solamente
 vacunados_israel <- readRDS("Otros_Paises_Datos/Israel/vacunados_israel.rds") %>%
-  group_by(EDAD_GRUPOS) %>%
-  summarise(sum(first_dose))
+  select(-second_dose) %>%
+  pivot_wider(names_from = Vaccination_date, values_from = first_dose) %>%
+  select(-EDAD_GRUPOS)
 
 
-## ----- Caracter?sticas del modelo 
+### -- Arreglamos los datos para que todo tenga las mismas dimensiones
+
+
+if (ncol(muertos_isreal) > ncol(P_edades)){
+  muertos_isreal <- muertos_isreal[, 1:ncol(P_edades)] 
+  prueba <- muertos_isreal %>%
+    mutate(A = across())
+    
+} else {
+  P_edades <- P_edades[,1:ncol(muertos_isreal)]
+}
+
+# Para los vacunados
+matriz_aux <- data.frame(matrix(0, ncol = ncol(vacunados_israel), nrow = nrow(vacunados_israel)))
+colnames(matriz_aux) <- colnames(vacunados_israel)
+
+vacunados_totales <- rbind(matriz_aux, vacunados_israel[6, ])
+
+matriz_aux <- data.frame(matrix(0, 
+                                ncol = (ncol(muertos_isreal) - ncol(vacunados_totales)),
+                                nrow = nrow(vacunados_totales)))
+
+vacunados_totales <- cbind(matriz_aux, vacunados_totales)
+colnames(vacunados_totales) <- colnames(muertos_isreal) ##FIXME esto no está 100% bien
+
+P_edades <- rbind(P_edades, muertos_isreal)
+
+#P_poblacion <- c(as.vector(datos_pob$Pop), pob_total_israel)
+P_poblacion <- c(as.vector(datos_pob$Pop/10000), pob_total_israel)
+
+#FIXME el problema definitivamente es vacunados, le tienes que poner un entero para que corra
+vacunados_totales <- vacunados_totales + 1
+
+save.image("imagen.RData")
+
+## ----- Caracter?stirbind()## ----- Caracter?sticas del modelo 
 chains = 1; iter_warmup = 100; nsim = 200; pchains = 1; m = 7; # threads = 1;
 #chains = 4; iter_warmup = 500; nsim = 1000; pchains = 4; m = 7; # threads = 1;
 datos  <- list( m = m, 
-                npaises = 1, #esto siempre tiene q ser 1 si no truena está mal el diseño
+                npaises = 1, ##esto funciona en un mundo ideal en el que no vivimos
+                nfilas = nrow(P_edades), 
                 dias_predict = 300,
-                ndias = ncol(P_edades) , nedades = length(edadlabels), P_edades = P_edades, 
+                ndias = ncol(P_edades) , nedades = 7, #length(edadlabels), #FIXME nedades está mal 
+                P_edades = P_edades, 
                 sigma_mu_hiper = 1,
                 mu_mu_hiper = 0, sigma_sigma_hiper = 1, sigma_edad_hiper = 1,
-                P_poblacion = as.data.frame(datos_pob[,2]/10000), 
-                ndias_isr = ncol(muertos_isreal),
-                vacunados = vacunados_israel[, 2], 
+                P_poblacion = P_poblacion, 
+                vacunados = vacunados_totales, 
                 P_pais_2 = muertos_isreal,
                 pob_total_isr = pob_total_israel) 
 
