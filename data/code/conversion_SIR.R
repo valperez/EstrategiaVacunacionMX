@@ -202,22 +202,5 @@ base_modelo_final <- left_join(inegi_dats, base_modelo,
                            "EDAD_CAT" = "EDAD_CAT", "Tercil" = "Tercil"))
 
 
-base_modelo_final <- base_modelo_final %>%
-  mutate(I = Infectados/Pop) %>%
-  mutate(H = Hospitalizados/Pop) %>%
-  mutate(M = Muertos/Pop) 
-
-base_modelo_final <- base_modelo_final %>%
-  mutate(Dia = as.numeric(Fecha - !!fecha_min)) 
-
-base_modelo_final <- base_modelo_final %>%
-  select(-Infectados, -Muertos, -Hospitalizados) %>%
-  pivot_wider(names_from = c(EDAD_CAT), values_from = c("I","M","H", "Pop"))
-
-# base_modelo_final <- base_modelo_final %>%
-#   mutate(across(starts_with("I"), ~ replace_na(., 0))) %>%
-#   mutate(across(starts_with("M"), ~ replace_na(., 0))) %>%
-#   mutate(across(starts_with("H"), ~ replace_na(., 0))) 
-
 saveRDS(base_modelo_final, "datos_SIR_porTercil.rds")
 
