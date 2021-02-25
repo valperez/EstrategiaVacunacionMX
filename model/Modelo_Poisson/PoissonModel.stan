@@ -20,14 +20,10 @@ data {
   real<lower=0> sigma_mu_hiper;                     //Sigma del hiperparámetro de la media
   real<lower=0> mu_mu_hiper;                        //Media del hiperparámetro de la media
   real<lower=0> sigma_sigma_hiper;
-  //real<lower=0> sigma_sigma_time_hiper;
   int<lower=0> P_edades[nedades*npaises, ndias]; //Proporción de hospitalizados para estado i día j
   vector[nedades*npaises] P_poblacion;           // es un vector que tiene la poblacion de cada pais dividida por grupo de edad
-  //real<lower=0> P_poblacion[nedades*npaises];
-  //Vamos a meter los datos de Israel
   real<lower=0> vacunados[nedades*npaises, ndias] ;  // vector de cuantos vacunados acumulados tiene cada pais 
-  //int<lower=0> P_pais_2[1, ndias];           // vector de hosp o muertos de Israel (solo tiene un renglon porque no tenemos edades)
-  //int<lower=1> pob_total_isr;
+  real<lower=0> escenarios[(nedades*npaises), ndias + dias_predict];
 }
 
 parameters {
@@ -40,7 +36,7 @@ parameters {
 
   vector[nedades*npaises] alpha; //Agregamos un random effect
   //real gamma; Yo digo que gamma es vector
-  vector[nedades*npaises] gamma;
+  real gamma;
   
   
   
@@ -86,7 +82,7 @@ model {
   for (t in (m + 1):ndias){
     ln_p_edad = alpha + cos(2*pi()*(t + 50)/180) * beta_yearly_cosine + 
                          sin(2*pi()*(t + 50)/180) * beta_yearly_sine +
-                         gamma .* to_vector(vacunados[1:(nedades*npaises), t]);
+                         gamma * to_vector(vacunados[1:(nedades*npaises), t]);
     for (k in 1:m){
       ln_p_edad = ln_p_edad + lambda[k]*to_vector(P_edades[1:(nedades*npaises),t-k]) ./ P_poblacion; //FIXME
     }
@@ -112,7 +108,8 @@ generated quantities {
   // Posterior dist for observed
   for (t in (m + 1):ndias){
     ln_p_edad = alpha + cos(2*pi()*(t + 50)/180) * beta_yearly_cosine +
-                         sin(2*pi()*(t + 50)/180) * beta_yearly_sine;
+                         sin(2*pi()*(t + 50)/180) * beta_yearly_sine + 
+                  gamma *to_vector(vacunados[1:(nedades*npaises), t]);
     for (k in 1:m){
       ln_p_edad = ln_p_edad + lambda[k]* to_vector(P_edades[1:(nedades*npaises),t-k]) ./ P_poblacion; 
     }
@@ -130,7 +127,8 @@ generated quantities {
   // Posterior dist for unobserved but still using some observed
   for (t in (ndias + 1):(ndias + m)){
     ln_p_edad = alpha + cos(2*pi()*(t + 50)/180) * beta_yearly_cosine + 
-                         sin(2*pi()*(t + 50)/180) * beta_yearly_sine;
+                         sin(2*pi()*(t + 50)/180) * beta_yearly_sine + 
+                  gamma *to_vector(escenarios[1:(nedades*npaises), t]);
     for (k in 1:m){
       if (t - k <= ndias){
         ln_p_edad = ln_p_edad + lambda[k]*to_vector(P_edades[1:(nedades*npaises),t-k]) ./ P_poblacion; 
@@ -148,12 +146,11 @@ generated quantities {
     }
   }
   
-  
-  
   // Posterior dist for unobserved 
   for (t in (ndias + m + 1):(ndias +  dias_predict)){
     ln_p_edad = alpha + cos(2*pi()*(t + 50)/180) * beta_yearly_cosine + 
-          sin(2*pi()*(t + 50)/180) * beta_yearly_sine;
+                  sin(2*pi()*(t + 50)/180) * beta_yearly_sine + 
+                  gamma *to_vector(escenarios[1:(nedades*npaises), t]);
     for (k in 1:m){
       ln_p_edad = ln_p_edad + lambda[k]* to_vector(EdadPred[1:(nedades*npaises),t-k]) ./ P_poblacion;
     }
@@ -166,6 +163,7 @@ generated quantities {
     }
   }
   
+  /*
   
   
     // Posterior dist for observed pais 2
@@ -173,7 +171,7 @@ generated quantities {
     ln_p_edad2 = alpha +  
                   cos(2*pi()*(t + 50)/180) * beta_yearly_cosine + 
                   sin(2*pi()*(t + 50)/180) * beta_yearly_sine + 
-                  gamma .*to_vector(vacunados[1:(nedades*npaises), t]);
+                  gamma *to_vector(vacunados[1:(nedades*npaises), t]);
     for (k in 1:m){
       ln_p_edad2 = ln_p_edad2 + lambda[k]* to_vector(P_edades[1:(nedades*npaises),t-k]) ./ P_poblacion; //FIXME
     }
@@ -191,12 +189,12 @@ generated quantities {
     ln_p_edad2 = alpha +  
                   cos(2*pi()*(t + 50)/180) * beta_yearly_cosine + 
                   sin(2*pi()*(t + 50)/180) * beta_yearly_sine + 
-                         gamma .*to_vector(vacunados[1:(nedades*npaises), t]);
+                         gamma *to_vector(vacunados[1:(nedades*npaises), t]);
     for (k in 1:m){
       if (t - k <= ndias){
         ln_p_edad2 = ln_p_edad2 + lambda[k]*to_vector(P_edades[1:(nedades*npaises),t-k]) ./ P_poblacion; 
       } else { 
-        ln_p_edad2 = ln_p_edad2 + lambda[k]*to_vector(EdadPred[1:(nedades*npaises),t-k]) ./ P_poblacion; 
+        ln_p_edad2 = ln_p_edad2 + lambda[k]*to_vector(EdadPred2[1:(nedades*npaises),t-k]) ./ P_poblacion; 
       }
     }
     
@@ -209,16 +207,15 @@ generated quantities {
     } 
   }
   
-
   
   // Posterior dist for unobserved pais 2
   for (t in (ndias + m + 1):(ndias +  dias_predict)){
     ln_p_edad2 = alpha +  
                   cos(2*pi()*(t + 50)/180) * beta_yearly_cosine + 
                   sin(2*pi()*(t + 50)/180) * beta_yearly_sine + 
-                  gamma .*to_vector(vacunados[1:(nedades*npaises), t]);
+                  gamma *to_vector(vacunados[1:(nedades*npaises), t]);
     for (k in 1:m){
-      ln_p_edad2 = ln_p_edad2 + lambda[k]* to_vector(EdadPred[1:(nedades*npaises),t-k]) ./ P_poblacion;
+      ln_p_edad2 = ln_p_edad2 + lambda[k]* to_vector(EdadPred2[1:(nedades*npaises),t-k]) ./ P_poblacion;
     } 
     for (j in 1:(nedades*npaises)){
       if (ln_p_edad2[j] > 20.79){
@@ -228,6 +225,6 @@ generated quantities {
       }
     } 
     
-  } 
-}
+  }  */
+} 
 

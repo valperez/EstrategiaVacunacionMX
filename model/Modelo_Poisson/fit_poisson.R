@@ -188,7 +188,24 @@ P_edades <- rbind(P_edades, muertos_isreal)
 P_poblacion <- c(as.vector(datos_pob$Pop/10000), pob_total_israel)
 
 #FIXME el problema definitivamente es vacunados, le tienes que poner un entero para que corra
-vacunados_totales <- vacunados_totales + 1
+vacunados_totales <- vacunados_totales - 1
+
+#OJO CON ESTA DIVISION
+vacunados_totales <- vacunados_totales/pob_total_israel
+
+## Escenarios de vacunados
+dias_predecir <- 50
+matriz_aux <- data.frame(matrix(seq(from = 75000, to = 75000*dias_predecir, by = 75000), 
+                                ncol = dias_predecir,
+                                nrow = nrow(vacunados_totales), byrow = T))
+escenarios <- cbind(vacunados_totales, matriz_aux)
+
+fechas <- ymd(colnames(vacunados_totales))
+
+fechas_todas <- seq(from = fechas[1], to = (fechas[288] + dias_predecir), by = 1)
+colnames(escenarios) <- fechas_todas
+
+escenarios <- escenarios/P_poblacion
 
 save.image("imagen.RData")
 
@@ -198,18 +215,18 @@ chains = 1; iter_warmup = 100; nsim = 200; pchains = 1; m = 7; # threads = 1;
 datos  <- list( m = m, 
                 npaises = 1, ##esto funciona en un mundo ideal en el que no vivimos
                 nfilas = nrow(P_edades), 
-                dias_predict = 300,
+                dias_predict = dias_predecir,
                 ndias = ncol(P_edades) , nedades = 7, #length(edadlabels), #FIXME nedades está mal 
                 P_edades = P_edades, 
                 sigma_mu_hiper = 1,
-                mu_mu_hiper = 0, sigma_sigma_hiper = 1, sigma_edad_hiper = 1,
+                mu_mu_hiper = 0, sigma_sigma_hiper = 1, #sigma_edad_hiper = 1,
                 P_poblacion = P_poblacion, 
-                vacunados = vacunados_totales, 
-                P_pais_2 = muertos_isreal,
-                pob_total_isr = pob_total_israel) 
+                vacunados = vacunados_totales,
+                escenarios = escenarios) 
 
 # Tengo que checar la dimension de vacunados 
 
+set.seed(99)
 
 # function form 2 with an argument named `chain_id`
 initf2 <- function(chain_id = 1) {
@@ -220,7 +237,7 @@ initf2 <- function(chain_id = 1) {
        mu_edad = rnorm(1, 0, 1),
        sigma_edad = abs(rnorm(1, 0, 1)),
        mu     = rnorm(1, 1, 0.1),
-       gamma  = rnorm(nrow(P_edades),0,0.1),
+       gamma  = rnorm(1,0,0.1),
        sigma  = abs(rnorm(1, 0, 1)))
 }
 
