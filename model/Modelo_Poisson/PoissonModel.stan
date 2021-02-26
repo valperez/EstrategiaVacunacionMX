@@ -98,7 +98,7 @@ generated quantities {
   int EdadPred[(nedades*npaises), dias_predict + ndias];
   vector[nedades*npaises] ln_p_edad;
   int EdadPred2[(nedades*npaises), dias_predict + ndias];
-  vector[nedades*npaises] ln_p_edad2;       //CHECKME No estoy segura de las dimensiones
+  vector[nedades*npaises] ln_p_edad2;       
   
   
   // First m points are to start model
@@ -114,14 +114,13 @@ generated quantities {
       ln_p_edad = ln_p_edad + lambda[k]* to_vector(P_edades[1:(nedades*npaises),t-k]) ./ P_poblacion; 
     }
     for (j in 1:(nedades*npaises)){
-      if (ln_p_edad[j] > 20.79){
+     /* if (ln_p_edad[j] > 20.79){
         EdadPred[j, t] = EdadPred[j, t-1];  
-      } else {
+      } else { */
         EdadPred[j, t] = poisson_log_rng(ln_p_edad[j]);
-      }
+      //}
     }
   }
-  
   
   
   // Posterior dist for unobserved but still using some observed
@@ -138,11 +137,11 @@ generated quantities {
     }
     
     for (j in 1:(nedades*npaises)){
-      if (ln_p_edad[j] > 20.79){
+     /* if (ln_p_edad[j] > 20.79){
         EdadPred[j, t] = EdadPred[j, t - 1];  
-      } else {
+      } else { */
         EdadPred[j, t] = poisson_log_rng(ln_p_edad[j]);
-      }
+     // }
     }
   }
   
@@ -155,11 +154,11 @@ generated quantities {
       ln_p_edad = ln_p_edad + lambda[k]* to_vector(EdadPred[1:(nedades*npaises),t-k]) ./ P_poblacion;
     }
     for (j in 1:(nedades*npaises)){
-      if (ln_p_edad[j] > 20.79){
+      /*if (ln_p_edad[j] > 20.79){
         EdadPred[j, t] = EdadPred[j, t-1];  
-      } else {
+      } else {*/
         EdadPred[j, t] = poisson_log_rng(ln_p_edad[j]);
-      }
+      //}
     }
   }
   
@@ -227,4 +226,5 @@ generated quantities {
     
   }  */
 } 
+
 

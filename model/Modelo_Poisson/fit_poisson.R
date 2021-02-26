@@ -16,9 +16,9 @@ options(mc.cores = max(parallel::detectCores() - 2, 1))
 
 set.seed(99)
 
-setwd("~/GitHub/EstrategiaVacunacionMX/")
-stan_fname = "model/Modelo_Poisson/PoissonModel.stan"
-
+#setwd("~/GitHub/EstrategiaVacunacionMX/")
+#stan_fname = "model/Modelo_Poisson/PoissonModel.stan"
+stan_fname = "PoissonModel.stan"
 ## ----- Datos de México -------
 
 descargar <- F
@@ -29,12 +29,12 @@ if (descargar){
 
 edadbreaks <- c(0, 40, 50, 60, 70, 80, Inf)
 edadlabels <- c("Edad < 40", "Edad 40 - 49", "Edad 50 - 59", 
-                          "Edad 60 - 69", "Edad 70 - 79", "Edad 80 +") 
+                "Edad 60 - 69", "Edad 70 - 79", "Edad 80 +") 
 
 #Cambiar a TRUE dependiendo de lo que se requiera calcular
 muertos <- T
 hosp <- F
-
+dats <-readRDS( "dats_covid.rds")
 if (muertos == T){
   dats <- dats %>%
     mutate(FECHA_ESCOGIDA = FECHA_DEF)
@@ -48,8 +48,8 @@ if (hosp == T){
 setwd("~/GitHub/EstrategiaVacunacionMX/")
 
 #---Trabajemos primero con la POBLACION México
-datos_pob <- readRDS("data/processed/datos_pob.rds")
-
+#datos_pob <- readRDS("data/processed/datos_pob.rds")
+datos_pob <- readRDS("datos_pob.rds")
 datos_pob <- datos_pob %>%
   mutate(`Edad < 40` = rowSums(select(. , `De 0 a 14 años`:`De 35 a 39 años`))) %>%
   mutate(`Edad 40 - 49` = rowSums(select(. , c(`De 40 a 44 años`:`De 45 a 49 años`)))) %>%
@@ -114,13 +114,11 @@ ggplot(def_covid, aes(x = FECHA_ESCOGIDA, y = totales, color = EDAD_GRUPOS)) +
   geom_line()
 
 
-
-
 #Eliminamos los 0s
 observados <- def_covid %>% filter(FECHA_ESCOGIDA >= ymd("2020/05/01") & FECHA_ESCOGIDA < max(FECHA_ESCOGIDA) - 10)
 min_fecha  <- min(def_covid$FECHA_ESCOGIDA)
- ggplot(observados, aes(x = FECHA_ESCOGIDA, y = totales, color = EDAD_GRUPOS)) +
-   geom_line()
+ggplot(observados, aes(x = FECHA_ESCOGIDA, y = totales, color = EDAD_GRUPOS)) +
+  geom_line()
 
 #Pivoteamos para obtener la matriz
 def_covid <- pivot_wider(observados, 
@@ -139,10 +137,10 @@ P_edades <- (def_covid %>% select(-EDAD_GRUPOS) %>% as.matrix())
 pob_total_israel <- 8745792
 
 if (muertos == T){
-  #muertos
-  muertos_isreal <- readRDS("Otros_Paises_Datos/Israel/muertos_totales_israel.rds") %>%
+  muertos_isreal <- readRDS("muertos_totales_israel.rds") %>%
+    #muertos_isreal <- readRDS("Otros_Paises_Datos/Israel/muertos_totales_israel.rds") %>%
     filter(date >= ymd("2020/05/01")) %>%
-    pivot_wider(mort_tot, values_from = mort_tot, names_from = date )
+    pivot_wider(mort_daily, values_from = mort_daily, names_from = date )
 }
 
 if (hosp == T){
@@ -151,7 +149,8 @@ if (hosp == T){
 }
 
 #Vacunados totales de la primera dosis solamente
-vacunados_israel <- readRDS("Otros_Paises_Datos/Israel/vacunados_israel.rds") %>%
+vacunados_israel <- readRDS("vacunados_israel.rds") %>%
+  #vacunados_israel <- readRDS("Otros_Paises_Datos/Israel/vacunados_israel.rds") %>%
   select(-second_dose) %>%
   pivot_wider(names_from = Vaccination_date, values_from = first_dose) %>%
   select(-EDAD_GRUPOS)
@@ -162,9 +161,7 @@ vacunados_israel <- readRDS("Otros_Paises_Datos/Israel/vacunados_israel.rds") %>
 
 if (ncol(muertos_isreal) > ncol(P_edades)){
   muertos_isreal <- muertos_isreal[, 1:ncol(P_edades)] 
-  prueba <- muertos_isreal %>%
-    mutate(A = across())
-    
+  
 } else {
   P_edades <- P_edades[,1:ncol(muertos_isreal)]
 }
@@ -184,11 +181,11 @@ colnames(vacunados_totales) <- colnames(muertos_isreal) ##FIXME esto no está 10
 
 P_edades <- rbind(P_edades, muertos_isreal)
 
-#P_poblacion <- c(as.vector(datos_pob$Pop), pob_total_israel)
-P_poblacion <- c(as.vector(datos_pob$Pop/10000), pob_total_israel)
+pob_tot_mexico <- sum(datos_pob$Pop)
+P_poblacion <- c(as.vector(datos_pob$Pop), pob_total_israel)
 
 #FIXME el problema definitivamente es vacunados, le tienes que poner un entero para que corra
-vacunados_totales <- vacunados_totales - 1
+#vacunados_totales <- vacunados_totales - 1
 
 #OJO CON ESTA DIVISION
 vacunados_totales <- vacunados_totales/pob_total_israel
@@ -199,19 +196,37 @@ matriz_aux <- data.frame(matrix(seq(from = 75000, to = 75000*dias_predecir, by =
                                 ncol = dias_predecir,
                                 nrow = nrow(vacunados_totales), byrow = T))
 escenarios <- cbind(vacunados_totales, matriz_aux)
-
 fechas <- ymd(colnames(vacunados_totales))
 
-fechas_todas <- seq(from = fechas[1], to = (fechas[288] + dias_predecir), by = 1)
+fechas_todas <- seq(from = fechas[1], to = (fechas[279] + dias_predecir), by = 1)
 colnames(escenarios) <- fechas_todas
 
 escenarios <- escenarios/P_poblacion
 
+aux <- data.frame("Israel", 7)
+colnames(aux) <- colnames(totales_match_edades)
+totales_match_edades <- rbind(totales_match_edades, aux)
+
+#Para los observados
+obs_israel <- readRDS("muertos_totales_israel.rds") %>%
+  #muertos_isreal <- readRDS("Otros_Paises_Datos/Israel/muertos_totales_israel.rds") %>%
+  filter(date >= ymd("2020/05/01") & date <= ymd(max(observados$FECHA_ESCOGIDA))) %>%
+  select(-mort_tot) %>%
+  rename(FECHA_ESCOGIDA = date) %>%
+  rename(totales = mort_daily) %>%
+  mutate(EDAD_GRUPOS = "Israel") %>%
+  relocate(FECHA_ESCOGIDA, EDAD_GRUPOS, totales)
+
+observados_totales <- rbind(observados, obs_israel)
+
+observados_totales <- observados_totales %>%
+  arrange(FECHA_ESCOGIDA, EDAD_GRUPOS)
+
 save.image("imagen.RData")
 
 ## ----- Caracter?stirbind()## ----- Caracter?sticas del modelo 
-chains = 1; iter_warmup = 100; nsim = 200; pchains = 1; m = 7; # threads = 1;
-#chains = 4; iter_warmup = 500; nsim = 1000; pchains = 4; m = 7; # threads = 1;
+#chains = 1; iter_warmup = 100; nsim = 200; pchains = 1; m = 7; # threads = 1;
+chains = 4; iter_warmup = 500; nsim = 1000; pchains = 4; m = 7; # threads = 1;
 datos  <- list( m = m, 
                 npaises = 1, ##esto funciona en un mundo ideal en el que no vivimos
                 nfilas = nrow(P_edades), 
@@ -261,7 +276,7 @@ modelo_ajustado <- summarise_draws(sc_model,
                                                            0.75, 0.875, 0.95, 
                                                            0.975, 0.995), na.rm = T))
 Morts            <- modelo_ajustado %>% 
-  filter(str_detect(variable, "EdadPred")) %>%
+  filter(str_detect(variable, "EdadPred\\[")) %>%
   mutate(GrupoNum = str_extract(variable, "\\[.*,")) %>%
   mutate(DiaNum    = str_extract(variable, ",.*\\]")) %>%
   mutate(GrupoNum = str_remove_all(GrupoNum,"\\[|,")) %>%
@@ -269,11 +284,13 @@ Morts            <- modelo_ajustado %>%
   mutate(GrupoNum = as.numeric(GrupoNum)) %>%
   mutate(DiaNum    = as.numeric(DiaNum)) %>%
   select(-variable) %>%
-  left_join(defunciones_match_edades, by = "GrupoNum") %>%
+  left_join(totales_match_edades, by = "GrupoNum") %>%
   mutate(Fecha = !!ymd("2020/05/01") + DiaNum) %>% 
-  full_join(observados %>% rename(Fecha = FECHA_DEF), by = c("Fecha","EDAD_GRUPOS")) %>%
+  #full_join(observados_totales %>% rename(Fecha = FECHA_ESCOGIDA), by = c("Fecha","EDAD_GRUPOS")) %>%
   arrange(EDAD_GRUPOS, Fecha)
 
+Morts <- Morts %>%
+  filter(EDAD_GRUPOS != "Israel")
 
 ggplot(Morts, aes(x = Fecha)) +
   geom_ribbon(aes(ymin = `0.5%`, ymax = `99.5%`, fill = "99%"), alpha = 0.2) +
@@ -282,9 +299,9 @@ ggplot(Morts, aes(x = Fecha)) +
   geom_ribbon(aes(ymin = `12.5%`, ymax = `87.5%`, fill = "75%"), alpha = 0.2) +
   geom_ribbon(aes(ymin = `25%`, ymax = `75%`, fill = "50%"), alpha = 0.2) +
   geom_line(aes(y = `50%`, color = "Predichos"), size = 0.1) +
-  geom_point(aes(y = defunciones_covid, color = "Observados"),
+  geom_point(aes(x = FECHA_ESCOGIDA, y = totales, color = "Observados"), data = observados_totales, 
              size = 0.1) +
-  geom_line(aes(y = defunciones_covid, color = "Observados"),
+  geom_line(aes(x = FECHA_ESCOGIDA, y = totales, color = "Observados"), data = observados_totales,
             size = 0.1) +
   facet_wrap(~EDAD_GRUPOS, ncol = 8) +
   scale_y_continuous(labels = scales::percent) +
@@ -307,4 +324,5 @@ ggplot(Morts, aes(x = Fecha)) +
     subtitle = "Modelo Poisson-Bayesiano"
   ) +
   ggsave(paste0("Mort_predict_",today(),".pdf"), width = 20, height = 10)
+
 
